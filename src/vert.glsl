@@ -1,10 +1,10 @@
 #version 460
 
-layout(location = 0) uniform vec2 screen_size;
-layout(location = 1) uniform mat4 transform;
+layout(location = 0) uniform vec2 uScreenSize;
+layout(location = 1) uniform mat4 uTransform;
 
-layout(location = 0) in vec3 pos;
+layout(location = 0) in vec3 aPos;
 
 void main() {
-    gl_Position = transform * vec4(pos, 1.f);
+    gl_Position = uTransform * vec4(aPos, 1.f);
 }
