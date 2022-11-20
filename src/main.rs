@@ -57,9 +57,11 @@ unsafe impl UniformFormat for GlyphUniforms {
     }
 }
 
+type GlyphId = u16;
+
 struct Text {
     font: Font<'static>,
-    glyph_cache: HashMap<u16, Path>,
+    glyph_cache: HashMap<GlyphId, Path>,
 }
 
 impl Text {
@@ -72,82 +74,138 @@ impl Text {
         }
     }
 
-    fn layout(&mut self, offset: Vec2, size: f32, text: &str) -> Mesh<GlyphVertex> {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-
+    fn layout(&mut self, size: f32, text: &str) -> TextLayout {
         let scale = size / self.font.units_per_em().unwrap() as f32;
-
-        let mut pos = offset + Vec2::new(0.0, scale * self.font.ascender() as f32);
-
         let line_height = scale * (self.font.height() + self.font.line_gap()) as f32;
+
+        let mut glyphs = Vec::new();
         let mut width: f32 = 0.0;
         let mut height: f32 = line_height;
+
+        let mut pos = Vec2::new(0.0, scale * self.font.ascender() as f32);
+
         for c in text.chars() {
             if c == '\n' {
                 pos.x = 0.0;
                 pos.y -= line_height;
                 height += line_height;
             } else if let Ok(glyph_id) = self.font.glyph_index(c) {
-                let path = self.glyph_cache.entry(glyph_id.0).or_insert_with(|| {
-                    use ttf_parser::OutlineBuilder;
-
-                    struct Builder {
-                        path: PathBuilder,
-                    }
-                    impl OutlineBuilder for Builder {
-                        fn move_to(&mut self, x: f32, y: f32) {
-                            self.path.move_to(Vec2::new(x, y));
-                        }
-                        fn line_to(&mut self, x: f32, y: f32) {
-                            self.path.line_to(Vec2::new(x, y));
-                        }
-                        fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-                            self.path.quadratic_to(Vec2::new(x1, y1), Vec2::new(x, y));
-                        }
-                        fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-                            self.path.cubic_to(
-                                Vec2::new(x1, y1),
-                                Vec2::new(x2, y2),
-                                Vec2::new(x, y),
-                            );
-                        }
-                        fn close(&mut self) {
-                            self.path.close();
-                        }
-                    }
-
-                    let mut builder = Builder {
-                        path: PathBuilder::new(),
-                    };
-                    let _ = self.font.outline_glyph(glyph_id, &mut builder);
-
-                    builder.path.build()
+                glyphs.push(Glyph {
+                    id: glyph_id.0,
+                    pos,
                 });
-
-                let base: u16 = vertices.len().try_into().unwrap();
-                vertices.extend_from_slice(&[
-                    GlyphVertex {
-                        pos: [pos.x + scale * path.min.x, pos.y + scale * path.min.y, 0.0],
-                    },
-                    GlyphVertex {
-                        pos: [pos.x + scale * path.max.x, pos.y + scale * path.min.y, 0.0],
-                    },
-                    GlyphVertex {
-                        pos: [pos.x + scale * path.max.x, pos.y + scale * path.max.y, 0.0],
-                    },
-                    GlyphVertex {
-                        pos: [pos.x + scale * path.min.x, pos.y + scale * path.max.y, 0.0],
-                    },
-                ]);
-                indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
 
                 pos.x += scale * self.font.glyph_hor_metrics(glyph_id).unwrap().advance as f32;
                 width = width.max(pos.x);
             }
         }
 
+        TextLayout {
+            glyphs,
+            scale,
+            width,
+            height,
+        }
+    }
+
+    fn mesh(&mut self, layout: &TextLayout) -> Mesh<GlyphVertex> {
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+
+        for glyph in layout.glyphs.iter() {
+            let path = self.glyph_cache.entry(glyph.id).or_insert_with(|| {
+                use ttf_parser::OutlineBuilder;
+
+                struct Builder {
+                    path: PathBuilder,
+                }
+                impl OutlineBuilder for Builder {
+                    fn move_to(&mut self, x: f32, y: f32) {
+                        self.path.move_to(Vec2::new(x, y));
+                    }
+                    fn line_to(&mut self, x: f32, y: f32) {
+                        self.path.line_to(Vec2::new(x, y));
+                    }
+                    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+                        self.path.quadratic_to(Vec2::new(x1, y1), Vec2::new(x, y));
+                    }
+                    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+                        self.path.cubic_to(
+                            Vec2::new(x1, y1),
+                            Vec2::new(x2, y2),
+                            Vec2::new(x, y),
+                        );
+                    }
+                    fn close(&mut self) {
+                        self.path.close();
+                    }
+                }
+
+                let mut builder = Builder {
+                    path: PathBuilder::new(),
+                };
+                let _ = self.font.outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
+
+                builder.path.build()
+            });
+
+            let base: u16 = vertices.len().try_into().unwrap();
+            vertices.extend_from_slice(&[
+                GlyphVertex {
+                    pos: [
+                        glyph.pos.x + layout.scale * path.min.x,
+                        glyph.pos.y + layout.scale * path.min.y,
+                        0.0,
+                    ],
+                },
+                GlyphVertex {
+                    pos: [
+                        glyph.pos.x + layout.scale * path.max.x,
+                        glyph.pos.y + layout.scale * path.min.y,
+                        0.0,
+                    ],
+                },
+                GlyphVertex {
+                    pos: [
+                        glyph.pos.x + layout.scale * path.max.x,
+                        glyph.pos.y + layout.scale * path.max.y,
+                        0.0,
+                    ],
+                },
+                GlyphVertex {
+                    pos: [
+                        glyph.pos.x + layout.scale * path.min.x,
+                        glyph.pos.y + layout.scale * path.max.y,
+                        0.0,
+                    ],
+                },
+            ]);
+            indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
+        }
+
         Mesh::new(&vertices, &indices)
+    }
+}
+
+struct Glyph {
+    id: GlyphId,
+    pos: Vec2,
+}
+
+struct TextLayout {
+    glyphs: Vec<Glyph>,
+    scale: f32,
+    width: f32,
+    height: f32,
+}
+
+impl TextLayout {
+    fn width(&self) -> f32 {
+        self.width
+    }
+
+    fn height(&self) -> f32 {
+        self.height
     }
 }
 
@@ -178,6 +236,7 @@ feugiat in, orci. In hac habitasse platea dictumst.";
 const SIZE: f32 = 18.0;
 
 struct GouacheHandler {
+    layout: TextLayout,
     timers: VecDeque<TimerQuery>,
     prog: Program<GlyphUniforms, GlyphVertex>,
     mesh: Mesh<GlyphVertex>,
@@ -234,7 +293,13 @@ fn main() {
     }
 
     let mut text = Text::new();
-    let mesh = text.layout(Vec2::new(0.0, -2.0 * SIZE + SCREEN_HEIGHT), SIZE, TEXT);
+    let layout = text.layout(SIZE, TEXT);
+    let mesh = text.mesh(&layout);
 
-    window.run(GouacheHandler { timers, prog, mesh });
+    window.run(GouacheHandler {
+        layout,
+        timers,
+        prog,
+        mesh,
+    });
 }
