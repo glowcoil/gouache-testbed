@@ -150,14 +150,15 @@ impl<U: UniformFormat, V: VertexFormat> Program<U, V> {
                             7 => gl::TEXTURE7,
                             _ => panic!("too many textures bound"),
                         };
-                        texture_slot += 1;
 
                         let id = *(ptr as *const TextureId);
 
                         gl::ActiveTexture(slot);
                         gl::BindTexture(gl::TEXTURE_2D, id);
 
-                        gl::Uniform1i(location, slot as i32);
+                        gl::Uniform1i(location, texture_slot.try_into().unwrap());
+
+                        texture_slot += 1;
                     }
                 }
             }
