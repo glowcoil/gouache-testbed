@@ -1,0 +1,9 @@
+[package]
+name = "gouache-bvh"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gl = "0.11.0"
+glutin = "0.22.0"
+ttf-parser = "0.2.2"
