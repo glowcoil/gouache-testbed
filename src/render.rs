@@ -65,6 +65,7 @@ pub enum UniformType {
     Float3,
     Float4,
     Float4x4,
+    Texture,
 }
 
 pub struct Uniform {
@@ -115,6 +116,8 @@ impl<U: UniformFormat, V: VertexFormat> Program<U, V> {
         unsafe {
             gl::UseProgram(self.id);
 
+            let mut texture_slot = 0;
+
             for uniform in U::uniforms() {
                 let location = uniform.location.try_into().unwrap();
                 let ptr = (uniforms as *const U as *const c_void).offset(uniform.offset);
@@ -134,6 +137,27 @@ impl<U: UniformFormat, V: VertexFormat> Program<U, V> {
                     }
                     UniformType::Float4x4 => {
                         gl::UniformMatrix4fv(location, 1, gl::TRUE, ptr as *const GLfloat);
+                    }
+                    UniformType::Texture => {
+                        let slot = match texture_slot {
+                            0 => gl::TEXTURE0,
+                            1 => gl::TEXTURE1,
+                            2 => gl::TEXTURE2,
+                            3 => gl::TEXTURE3,
+                            4 => gl::TEXTURE4,
+                            5 => gl::TEXTURE5,
+                            6 => gl::TEXTURE6,
+                            7 => gl::TEXTURE7,
+                            _ => panic!("too many textures bound"),
+                        };
+                        texture_slot += 1;
+
+                        let id = *(ptr as *const TextureId);
+
+                        gl::ActiveTexture(slot);
+                        gl::BindTexture(gl::TEXTURE_2D, id);
+
+                        gl::Uniform1i(location, slot as i32);
                     }
                 }
             }
@@ -267,5 +291,54 @@ impl<V> Drop for Mesh<V> {
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteBuffers(1, &self.ibo);
         }
+    }
+}
+
+pub enum TextureFormat {
+    Rgb16Unorm,
+}
+
+pub type TextureId = GLuint;
+
+pub struct Texture {
+    id: GLuint,
+}
+
+impl Texture {
+    pub unsafe fn new(
+        format: TextureFormat,
+        width: usize,
+        height: usize,
+        data: *const c_void,
+    ) -> Texture {
+        let mut id: GLuint = 0;
+        gl::GenTextures(1, &mut id);
+        gl::BindTexture(gl::TEXTURE_2D, id);
+
+        let (internal_format, pixel_format, data_type) = match format {
+            TextureFormat::Rgb16Unorm => (gl::RGB16, gl::RGB, gl::UNSIGNED_SHORT),
+        };
+
+        gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            internal_format as GLint,
+            width.try_into().unwrap(),
+            height.try_into().unwrap(),
+            0,
+            pixel_format,
+            data_type,
+            data,
+        );
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+        Texture { id }
+    }
+
+    pub fn id(&self) -> TextureId {
+        self.id
     }
 }
