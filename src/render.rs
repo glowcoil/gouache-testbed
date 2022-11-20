@@ -258,3 +258,13 @@ impl<V: VertexFormat> Mesh<V> {
         }
     }
 }
+
+impl<V> Drop for Mesh<V> {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.vao);
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteBuffers(1, &self.ibo);
+        }
+    }
+}
