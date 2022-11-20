@@ -299,7 +299,7 @@ impl<V: VertexFormat> Mesh<V> {
             vao,
             vbo,
             ibo,
-            len: vertices.len(),
+            len: indices.len(),
             marker: PhantomData,
         }
     }
