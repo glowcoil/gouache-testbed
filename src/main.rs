@@ -148,8 +148,34 @@ struct Path {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-struct Vertex {
+struct GlyphVertex {
     pos: [f32; 3],
+}
+
+unsafe impl VertexFormat for GlyphVertex {
+    fn attribs() -> Vec<VertexAttrib> {
+        vec![VertexAttrib {
+            location: 0,
+            type_: AttribType::Float,
+            dimension: 3,
+            offset: unsafe { offset_of!(GlyphVertex, pos) },
+        }]
+    }
+}
+
+#[repr(C)]
+struct GlyphUniforms {
+    screen_size: [f32; 2],
+}
+
+unsafe impl UniformFormat for GlyphUniforms {
+    fn uniforms() -> Vec<Uniform> {
+        vec![Uniform {
+            location: 0,
+            type_: UniformType::Float2,
+            offset: unsafe { offset_of!(GlyphUniforms, screen_size) },
+        }]
+    }
 }
 
 struct Text {
@@ -167,7 +193,7 @@ impl Text {
         }
     }
 
-    fn layout(&mut self, offset: Vec2, size: f32, text: &str) -> (Vec<Vertex>, Vec<u16>) {
+    fn layout(&mut self, offset: Vec2, size: f32, text: &str) -> Mesh<GlyphVertex> {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
 
@@ -222,16 +248,16 @@ impl Text {
 
                 let base: u16 = vertices.len().try_into().unwrap();
                 vertices.extend_from_slice(&[
-                    Vertex {
+                    GlyphVertex {
                         pos: [pos.x + scale * path.min.x, pos.y + scale * path.min.y, 0.0],
                     },
-                    Vertex {
+                    GlyphVertex {
                         pos: [pos.x + scale * path.max.x, pos.y + scale * path.min.y, 0.0],
                     },
-                    Vertex {
+                    GlyphVertex {
                         pos: [pos.x + scale * path.max.x, pos.y + scale * path.max.y, 0.0],
                     },
-                    Vertex {
+                    GlyphVertex {
                         pos: [pos.x + scale * path.min.x, pos.y + scale * path.max.y, 0.0],
                     },
                 ]);
@@ -242,7 +268,7 @@ impl Text {
             }
         }
 
-        (vertices, indices)
+        Mesh::new(&vertices, &indices)
     }
 }
 
@@ -274,11 +300,8 @@ const SIZE: f32 = 18.0;
 
 struct GouacheHandler {
     timers: VecDeque<TimerQuery>,
-    prog: Program,
-    vao: GLuint,
-    vbo: GLuint,
-    ibo: GLuint,
-    vertices_len: usize,
+    prog: Program<GlyphUniforms, GlyphVertex>,
+    mesh: Mesh<GlyphVertex>,
 }
 
 impl Handler for GouacheHandler {
@@ -302,27 +325,15 @@ impl Handler for GouacheHandler {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        self.prog.bind();
-
-        unsafe {
-            gl::Uniform2f(0, SCREEN_WIDTH, SCREEN_HEIGHT);
-        }
-
-        unsafe {
-            gl::BindVertexArray(self.vao);
-        }
-
         let timer = TimerQuery::new();
         timer.begin();
 
-        unsafe {
-            gl::DrawElements(
-                gl::TRIANGLES,
-                self.vertices_len as i32,
-                gl::UNSIGNED_SHORT,
-                0 as *const GLvoid,
-            );
-        }
+        self.prog.draw(
+            &GlyphUniforms {
+                screen_size: [SCREEN_WIDTH, SCREEN_HEIGHT],
+            },
+            &self.mesh,
+        );
 
         timer.end();
         self.timers.push_back(timer);
@@ -349,45 +360,7 @@ fn main() {
     }
 
     let mut text = Text::new();
-    let (vertices, indices) = text.layout(Vec2::new(0.0, -2.0 * SIZE + SCREEN_HEIGHT), SIZE, TEXT);
+    let mesh = text.layout(Vec2::new(0.0, -2.0 * SIZE + SCREEN_HEIGHT), SIZE, TEXT);
 
-    let mut vbo: u32 = 0;
-    let mut ibo: u32 = 0;
-    let mut vao: u32 = 0;
-    unsafe {
-        gl::GenVertexArrays(1, &mut vao);
-        gl::BindVertexArray(vao);
-
-        gl::GenBuffers(1, &mut vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (vertices.len() * std::mem::size_of::<Vertex>()) as isize,
-            vertices.as_ptr() as *const std::ffi::c_void,
-            gl::DYNAMIC_DRAW,
-        );
-
-        gl::GenBuffers(1, &mut ibo);
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
-        gl::BufferData(
-            gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * std::mem::size_of::<u16>()) as isize,
-            indices.as_ptr() as *const std::ffi::c_void,
-            gl::DYNAMIC_DRAW,
-        );
-
-        gl::EnableVertexAttribArray(0);
-        gl::VertexAttribPointer(
-            0,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            std::mem::size_of::<Vertex>() as GLint,
-            offset_of!(Vertex, pos) as *const GLvoid,
-        );
-    }
-
-    let vertices_len = vertices.len();
-
-    window.run(GouacheHandler { timers, prog, vao, vbo, ibo, vertices_len });
+    window.run(GouacheHandler { timers, prog, mesh });
 }

@@ -1,24 +1,25 @@
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
+use std::marker::PhantomData;
 
-use gl::types::{GLchar, GLenum, GLint, GLuint, GLvoid};
+use gl::types::{GLchar, GLenum, GLfloat, GLint, GLuint, GLvoid};
 
 pub struct TimerQuery {
-    query: u32,
+    id: u32,
 }
 
 impl TimerQuery {
     pub fn new() -> TimerQuery {
         unsafe {
-            let mut query = 0;
-            gl::GenQueries(1, &mut query);
+            let mut id = 0;
+            gl::GenQueries(1, &mut id);
 
-            TimerQuery { query: query }
+            TimerQuery { id }
         }
     }
 
     pub fn begin(&self) {
         unsafe {
-            gl::BeginQuery(gl::TIME_ELAPSED, self.query);
+            gl::BeginQuery(gl::TIME_ELAPSED, self.id);
         }
     }
 
@@ -31,11 +32,11 @@ impl TimerQuery {
     pub fn elapsed(&self) -> Option<u64> {
         unsafe {
             let mut available: i32 = 0;
-            gl::GetQueryObjectiv(self.query, gl::QUERY_RESULT_AVAILABLE, &mut available);
+            gl::GetQueryObjectiv(self.id, gl::QUERY_RESULT_AVAILABLE, &mut available);
 
             if available != 0 {
                 let mut elapsed: u64 = 0;
-                gl::GetQueryObjectui64v(self.query, gl::QUERY_RESULT, &mut elapsed);
+                gl::GetQueryObjectui64v(self.id, gl::QUERY_RESULT, &mut elapsed);
 
                 return Some(elapsed);
             }
@@ -48,17 +49,36 @@ impl TimerQuery {
 impl Drop for TimerQuery {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteQueries(1, &self.query);
+            gl::DeleteQueries(1, &self.id);
         }
     }
 }
 
-pub struct Program {
-    id: GLuint,
+pub unsafe trait UniformFormat {
+    fn uniforms() -> Vec<Uniform>;
 }
 
-impl Program {
-    pub fn new(vert_src: &CStr, frag_src: &CStr) -> Result<Program, String> {
+pub enum UniformType {
+    Float,
+    Float2,
+    Float3,
+    Float4,
+    Float4x4,
+}
+
+pub struct Uniform {
+    pub location: usize,
+    pub type_: UniformType,
+    pub offset: isize,
+}
+
+pub struct Program<U, V> {
+    id: GLuint,
+    marker: PhantomData<(U, V)>,
+}
+
+impl<U: UniformFormat, V: VertexFormat> Program<U, V> {
+    pub fn new(vert_src: &CStr, frag_src: &CStr) -> Result<Self, String> {
         unsafe {
             let vert = shader(vert_src, gl::VERTEX_SHADER).unwrap();
             let frag = shader(frag_src, gl::FRAGMENT_SHADER).unwrap();
@@ -83,18 +103,53 @@ impl Program {
             gl::DeleteShader(vert);
             gl::DeleteShader(frag);
 
-            Ok(Program { id })
+            Ok(Program {
+                id,
+                marker: PhantomData,
+            })
         }
     }
 
-    pub fn bind(&self) {
+    pub fn draw(&self, uniforms: &U, mesh: &Mesh<V>) {
         unsafe {
             gl::UseProgram(self.id);
+
+            for uniform in U::uniforms() {
+                let location = uniform.location.try_into().unwrap();
+                let ptr = (uniforms as *const U as *const c_void).offset(uniform.offset);
+
+                match uniform.type_ {
+                    UniformType::Float => {
+                        gl::Uniform1fv(location, 1, ptr as *const GLfloat);
+                    }
+                    UniformType::Float2 => {
+                        gl::Uniform2fv(location, 1, ptr as *const GLfloat);
+                    }
+                    UniformType::Float3 => {
+                        gl::Uniform3fv(location, 1, ptr as *const GLfloat);
+                    }
+                    UniformType::Float4 => {
+                        gl::Uniform4fv(location, 1, ptr as *const GLfloat);
+                    }
+                    UniformType::Float4x4 => {
+                        gl::UniformMatrix4fv(location, 1, gl::TRUE, ptr as *const GLfloat);
+                    }
+                }
+            }
+
+            gl::BindVertexArray(mesh.vao);
+
+            gl::DrawElements(
+                gl::TRIANGLES,
+                mesh.len.try_into().unwrap(),
+                gl::UNSIGNED_SHORT,
+                0 as *const GLvoid,
+            );
         }
     }
 }
 
-impl Drop for Program {
+impl<U, V> Drop for Program<U, V> {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteProgram(self.id);
@@ -124,5 +179,82 @@ fn shader(shader_src: &CStr, shader_type: GLenum) -> Result<GLuint, String> {
         }
 
         Ok(shader)
+    }
+}
+
+pub unsafe trait VertexFormat {
+    fn attribs() -> Vec<VertexAttrib>;
+}
+
+pub enum AttribType {
+    Float,
+}
+
+pub struct VertexAttrib {
+    pub location: usize,
+    pub type_: AttribType,
+    pub dimension: usize,
+    pub offset: isize,
+}
+
+pub struct Mesh<V> {
+    vao: GLuint,
+    vbo: GLuint,
+    ibo: GLuint,
+    len: usize,
+    marker: PhantomData<V>,
+}
+
+impl<V: VertexFormat> Mesh<V> {
+    pub fn new(vertices: &[V], indices: &[u16]) -> Self {
+        let mut vbo: u32 = 0;
+        let mut ibo: u32 = 0;
+        let mut vao: u32 = 0;
+        unsafe {
+            gl::GenVertexArrays(1, &mut vao);
+            gl::BindVertexArray(vao);
+
+            gl::GenBuffers(1, &mut vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (vertices.len() * std::mem::size_of::<V>()) as isize,
+                vertices.as_ptr() as *const GLvoid,
+                gl::DYNAMIC_DRAW,
+            );
+
+            gl::GenBuffers(1, &mut ibo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
+            gl::BufferData(
+                gl::ELEMENT_ARRAY_BUFFER,
+                (indices.len() * std::mem::size_of::<u16>()) as isize,
+                indices.as_ptr() as *const std::ffi::c_void,
+                gl::DYNAMIC_DRAW,
+            );
+
+            for attrib in V::attribs() {
+                let type_ = match attrib.type_ {
+                    AttribType::Float => gl::FLOAT,
+                };
+
+                gl::EnableVertexAttribArray(0);
+                gl::VertexAttribPointer(
+                    attrib.location.try_into().unwrap(),
+                    attrib.dimension.try_into().unwrap(),
+                    type_,
+                    gl::FALSE,
+                    std::mem::size_of::<V>() as GLint,
+                    attrib.offset as *const GLvoid,
+                );
+            }
+        }
+
+        Mesh {
+            vao,
+            vbo,
+            ibo,
+            len: vertices.len(),
+            marker: PhantomData,
+        }
     }
 }
