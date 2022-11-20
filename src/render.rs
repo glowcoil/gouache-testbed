@@ -314,7 +314,10 @@ impl<V> Drop for Mesh<V> {
     }
 }
 
+#[allow(unused)]
 pub enum TextureFormat {
+    Rg16Ui,
+    Rg16Unorm,
     Rgb16Unorm,
 }
 
@@ -336,6 +339,8 @@ impl Texture {
         gl::BindTexture(gl::TEXTURE_2D, id);
 
         let (internal_format, pixel_format, data_type) = match format {
+            TextureFormat::Rg16Ui => (gl::RG16UI, gl::RG, gl::UNSIGNED_SHORT),
+            TextureFormat::Rg16Unorm => (gl::RG16, gl::RG, gl::UNSIGNED_SHORT),
             TextureFormat::Rgb16Unorm => (gl::RGB16, gl::RGB, gl::UNSIGNED_SHORT),
         };
 
