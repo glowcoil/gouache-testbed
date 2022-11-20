@@ -166,11 +166,8 @@ impl Text {
                         self.path.quadratic_to(Vec2::new(x1, y1), Vec2::new(x, y));
                     }
                     fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-                        self.path.cubic_to(
-                            Vec2::new(x1, y1),
-                            Vec2::new(x2, y2),
-                            Vec2::new(x, y),
-                        );
+                        self.path
+                            .cubic_to(Vec2::new(x1, y1), Vec2::new(x2, y2), Vec2::new(x, y));
                     }
                     fn close(&mut self) {
                         self.path.close();
@@ -180,7 +177,9 @@ impl Text {
                 let mut builder = Builder {
                     path: PathBuilder::new(),
                 };
-                let _ = self.font.outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
+                let _ = self
+                    .font
+                    .outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
 
                 let path = builder.path.build();
 
@@ -382,9 +381,14 @@ impl Handler for GouacheHandler {
         }
 
         let model = Mat4x4::scale(0.1)
-            * Mat4x4::translate(-0.5 * self.layout.width(), 0.5 * self.layout.height(), 0.0);
+            * Mat4x4::translate(-0.5 * self.layout.width(), 0.25 * self.layout.height(), 0.0);
         let view = Mat4x4::translate(0.0, 0.0, -1.0 - self.z) * self.rotate;
-        let proj = Mat4x4::perspective(std::f32::consts::PI / 4.0, SCREEN_WIDTH / SCREEN_HEIGHT, 0.1, 10000.0);
+        let proj = Mat4x4::perspective(
+            std::f32::consts::PI / 4.0,
+            SCREEN_WIDTH / SCREEN_HEIGHT,
+            0.1,
+            10000.0,
+        );
         let transform = proj * view * model;
 
         let timer = TimerQuery::new();
