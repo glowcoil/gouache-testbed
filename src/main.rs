@@ -64,18 +64,34 @@ unsafe impl UniformFormat for GlyphUniforms {
 
 type GlyphId = u16;
 
+struct GlyphEntry {
+    path: Path,
+    components_range: [u32; 2],
+    points_range: [u32; 2],
+}
+
 struct Text {
     font: Font<'static>,
-    glyph_cache: HashMap<GlyphId, Path>,
+    glyph_cache: HashMap<GlyphId, GlyphEntry>,
+    components: Vec<u16>,
+    points: Vec<u16>,
+    texture_width: usize,
+    components_len: usize,
+    points_len: usize,
 }
 
 impl Text {
-    fn new() -> Text {
+    fn with_texture_width(texture_width: usize) -> Text {
         let font = Font::from_data(include_bytes!("SourceSansPro-Regular.otf"), 0).unwrap();
 
         Text {
             font,
             glyph_cache: HashMap::new(),
+            components: Vec::new(),
+            points: Vec::new(),
+            texture_width,
+            components_len: 0,
+            points_len: 0,
         }
     }
 
@@ -118,7 +134,7 @@ impl Text {
         let mut indices = Vec::new();
 
         for glyph in layout.glyphs.iter() {
-            let path = self.glyph_cache.entry(glyph.id).or_insert_with(|| {
+            let glyph_entry = self.glyph_cache.entry(glyph.id).or_insert_with(|| {
                 use ttf_parser::OutlineBuilder;
 
                 struct Builder {
@@ -151,36 +167,70 @@ impl Text {
                 };
                 let _ = self.font.outline_glyph(ttf_parser::GlyphId(glyph.id), &mut builder);
 
-                builder.path.build()
+                let path = builder.path.build();
+
+                if self.components_len + path.components.len() > self.components.len() {
+                    self.components
+                        .resize(self.components.len() + self.texture_width, 0);
+                }
+                self.components[self.components_len..self.components_len + path.components.len()]
+                    .clone_from_slice(&path.components);
+                let components_start = self.components_len / 2;
+                let components_end = (self.components_len + path.components.len()) / 2;
+                let components_range = [
+                    components_start.try_into().unwrap(),
+                    components_end.try_into().unwrap(),
+                ];
+                self.components_len += path.components.len();
+
+                if self.points_len + path.points.len() > self.points.len() {
+                    self.points
+                        .resize(self.points.len() + self.texture_width, 0);
+                }
+                self.points[self.points_len..self.points_len + path.points.len()]
+                    .clone_from_slice(&path.points);
+                let points_start = self.points_len / 2;
+                let points_end = (self.points_len + path.points.len()) / 2;
+                let points_range = [
+                    points_start.try_into().unwrap(),
+                    points_end.try_into().unwrap(),
+                ];
+                self.points_len += path.points.len();
+
+                GlyphEntry {
+                    path,
+                    components_range,
+                    points_range,
+                }
             });
 
             let base: u16 = vertices.len().try_into().unwrap();
             vertices.extend_from_slice(&[
                 GlyphVertex {
                     pos: [
-                        glyph.pos.x + layout.scale * path.min.x,
-                        glyph.pos.y + layout.scale * path.min.y,
+                        glyph.pos.x + layout.scale * glyph_entry.path.min.x,
+                        glyph.pos.y + layout.scale * glyph_entry.path.min.y,
                         0.0,
                     ],
                 },
                 GlyphVertex {
                     pos: [
-                        glyph.pos.x + layout.scale * path.max.x,
-                        glyph.pos.y + layout.scale * path.min.y,
+                        glyph.pos.x + layout.scale * glyph_entry.path.max.x,
+                        glyph.pos.y + layout.scale * glyph_entry.path.min.y,
                         0.0,
                     ],
                 },
                 GlyphVertex {
                     pos: [
-                        glyph.pos.x + layout.scale * path.max.x,
-                        glyph.pos.y + layout.scale * path.max.y,
+                        glyph.pos.x + layout.scale * glyph_entry.path.max.x,
+                        glyph.pos.y + layout.scale * glyph_entry.path.max.y,
                         0.0,
                     ],
                 },
                 GlyphVertex {
                     pos: [
-                        glyph.pos.x + layout.scale * path.min.x,
-                        glyph.pos.y + layout.scale * path.max.y,
+                        glyph.pos.x + layout.scale * glyph_entry.path.min.x,
+                        glyph.pos.y + layout.scale * glyph_entry.path.max.y,
                         0.0,
                     ],
                 },
@@ -239,6 +289,8 @@ laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu,
 feugiat in, orci. In hac habitasse platea dictumst.";
 
 const SIZE: f32 = 18.0;
+
+const TEXTURE_WIDTH: usize = 4096;
 
 struct GouacheHandler {
     timers: VecDeque<TimerQuery>,
@@ -334,7 +386,8 @@ fn main() {
         gl::Enable(gl::FRAMEBUFFER_SRGB);
     }
 
-    let mut text = Text::new();
+    let mut text = Text::with_texture_width(TEXTURE_WIDTH);
+
     let layout = text.layout(SIZE, TEXT);
     let mesh = text.mesh(&layout);
 
