@@ -4,9 +4,8 @@ mod render;
 mod window;
 
 use std::collections::{HashMap, VecDeque};
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 
-use gl::types::{GLchar, GLenum, GLint, GLuint, GLvoid};
 use ttf_parser::Font;
 
 use geom::*;
@@ -185,11 +184,6 @@ struct GouacheHandler {
 }
 
 impl Handler for GouacheHandler {
-    fn scroll(&mut self, dx: f32, dy: f32) {}
-    fn mouse_down(&mut self) {}
-    fn mouse_up(&mut self) {}
-    fn mouse_move(&mut self, dx: f32, dy: f32) {}
-
     fn render(&mut self, context: &GlContext) {
         while let Some(timer) = self.timers.front() {
             if let Some(elapsed) = timer.elapsed() {
@@ -225,7 +219,7 @@ impl Handler for GouacheHandler {
 fn main() {
     let window = Window::open(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    let mut timers: VecDeque<TimerQuery> = VecDeque::with_capacity(64);
+    let timers: VecDeque<TimerQuery> = VecDeque::with_capacity(64);
 
     let prog = Program::new(
         &CString::new(include_bytes!("vert.glsl") as &[u8]).unwrap(),

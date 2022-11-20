@@ -58,6 +58,7 @@ pub unsafe trait UniformFormat {
     fn uniforms() -> Vec<Uniform>;
 }
 
+#[allow(unused)]
 pub enum UniformType {
     Float,
     Float2,

@@ -7,11 +7,17 @@ use glutin::{Api, ContextBuilder, ContextWrapper, GlRequest, PossiblyCurrent};
 pub type GlContext = ContextWrapper<PossiblyCurrent, glutin::window::Window>;
 
 pub trait Handler {
-    fn scroll(&mut self, dx: f32, dy: f32);
-    fn mouse_down(&mut self);
-    fn mouse_up(&mut self);
-    fn mouse_move(&mut self, dx: f32, dy: f32);
-    fn render(&mut self, context: &GlContext);
+    fn scroll(&mut self, dx: f32, dy: f32) {
+        let _ = (dx, dy);
+    }
+    fn mouse_down(&mut self) {}
+    fn mouse_up(&mut self) {}
+    fn mouse_move(&mut self, dx: f32, dy: f32) {
+        let _ = (dx, dy);
+    }
+    fn render(&mut self, context: &GlContext) {
+        let _ = context;
+    }
 }
 
 pub struct Window {
