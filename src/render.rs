@@ -213,6 +213,7 @@ pub unsafe trait VertexFormat {
 
 pub enum AttribType {
     Float,
+    Uint,
 }
 
 pub struct VertexAttrib {
@@ -258,19 +259,38 @@ impl<V: VertexFormat> Mesh<V> {
             );
 
             for (index, attrib) in V::attribs().into_iter().enumerate() {
-                let type_ = match attrib.type_ {
-                    AttribType::Float => gl::FLOAT,
+                enum Kind {
+                    Float,
+                    Int,
+                }
+
+                let (type_, kind) = match attrib.type_ {
+                    AttribType::Float => (gl::FLOAT, Kind::Float),
+                    AttribType::Uint => (gl::UNSIGNED_INT, Kind::Int),
                 };
 
                 gl::EnableVertexAttribArray(index.try_into().unwrap());
-                gl::VertexAttribPointer(
-                    attrib.location.try_into().unwrap(),
-                    attrib.dimension.try_into().unwrap(),
-                    type_,
-                    gl::FALSE,
-                    std::mem::size_of::<V>() as GLint,
-                    attrib.offset as *const GLvoid,
-                );
+                match kind {
+                    Kind::Float => {
+                        gl::VertexAttribPointer(
+                            attrib.location.try_into().unwrap(),
+                            attrib.dimension.try_into().unwrap(),
+                            type_,
+                            gl::FALSE,
+                            std::mem::size_of::<V>() as GLint,
+                            attrib.offset as *const GLvoid,
+                        );
+                    }
+                    Kind::Int => {
+                        gl::VertexAttribIPointer(
+                            attrib.location.try_into().unwrap(),
+                            attrib.dimension.try_into().unwrap(),
+                            type_,
+                            std::mem::size_of::<V>() as GLint,
+                            attrib.offset as *const GLvoid,
+                        );
+                    }
+                }
             }
         }
 
