@@ -1,19 +1,16 @@
 mod geom;
+mod render;
+mod window;
 
 use std::collections::{HashMap, VecDeque};
 use std::ffi::{CStr, CString};
 
 use gl::types::{GLchar, GLenum, GLint, GLuint, GLvoid};
-
-use glutin::dpi::LogicalSize;
-use glutin::event::{Event, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::{Window, WindowBuilder};
-use glutin::{Api, ContextBuilder, ContextWrapper, GlRequest, PossiblyCurrent};
-
 use ttf_parser::Font;
 
 use geom::*;
+use render::*;
+use window::*;
 
 macro_rules! offset_of {
     ($struct:ty, $field:ident) => {{
@@ -25,180 +22,6 @@ macro_rules! offset_of {
 
         (field as *const c_void).offset_from(base as *const c_void)
     }};
-}
-
-struct TimerQuery {
-    query: u32,
-}
-
-impl TimerQuery {
-    fn new() -> TimerQuery {
-        unsafe {
-            let mut query = 0;
-            gl::GenQueries(1, &mut query);
-
-            TimerQuery { query: query }
-        }
-    }
-
-    fn begin(&self) {
-        unsafe {
-            gl::BeginQuery(gl::TIME_ELAPSED, self.query);
-        }
-    }
-
-    fn end(&self) {
-        unsafe {
-            gl::EndQuery(gl::TIME_ELAPSED);
-        }
-    }
-
-    fn elapsed(&self) -> Option<u64> {
-        unsafe {
-            let mut available: i32 = 0;
-            gl::GetQueryObjectiv(self.query, gl::QUERY_RESULT_AVAILABLE, &mut available);
-
-            if available != 0 {
-                let mut elapsed: u64 = 0;
-                gl::GetQueryObjectui64v(self.query, gl::QUERY_RESULT, &mut elapsed);
-
-                return Some(elapsed);
-            }
-        }
-
-        None
-    }
-}
-
-impl Drop for TimerQuery {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteQueries(1, &self.query);
-        }
-    }
-}
-
-struct Program {
-    id: GLuint,
-}
-
-impl Program {
-    fn new(vert_src: &CStr, frag_src: &CStr) -> Result<Program, String> {
-        unsafe {
-            let vert = shader(vert_src, gl::VERTEX_SHADER).unwrap();
-            let frag = shader(frag_src, gl::FRAGMENT_SHADER).unwrap();
-            let id = gl::CreateProgram();
-            gl::AttachShader(id, vert);
-            gl::AttachShader(id, frag);
-            gl::LinkProgram(id);
-
-            let mut valid: GLint = 1;
-            gl::GetProgramiv(id, gl::LINK_STATUS, &mut valid);
-            if valid == 0 {
-                let mut len: GLint = 0;
-                gl::GetProgramiv(id, gl::INFO_LOG_LENGTH, &mut len);
-                let error = CString::new(vec![b' '; len as usize]).unwrap();
-                gl::GetProgramInfoLog(id, len, std::ptr::null_mut(), error.as_ptr() as *mut GLchar);
-                return Err(error.into_string().unwrap());
-            }
-
-            gl::DetachShader(id, vert);
-            gl::DetachShader(id, frag);
-
-            gl::DeleteShader(vert);
-            gl::DeleteShader(frag);
-
-            Ok(Program { id })
-        }
-    }
-
-    fn bind(&self) {
-        unsafe {
-            gl::UseProgram(self.id);
-        }
-    }
-}
-
-impl Drop for Program {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteProgram(self.id);
-        }
-    }
-}
-
-fn shader(shader_src: &CStr, shader_type: GLenum) -> Result<GLuint, String> {
-    unsafe {
-        let shader: GLuint = gl::CreateShader(shader_type);
-        gl::ShaderSource(shader, 1, &shader_src.as_ptr(), std::ptr::null());
-        gl::CompileShader(shader);
-
-        let mut valid: GLint = 1;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut valid);
-        if valid == 0 {
-            let mut len: GLint = 0;
-            gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
-            let error = CString::new(vec![b' '; len as usize]).unwrap();
-            gl::GetShaderInfoLog(
-                shader,
-                len,
-                std::ptr::null_mut(),
-                error.as_ptr() as *mut GLchar,
-            );
-            return Err(error.into_string().unwrap());
-        }
-
-        Ok(shader)
-    }
-}
-
-struct GouacheWindow {
-    event_loop: EventLoop<()>,
-    context: ContextWrapper<PossiblyCurrent, Window>,
-}
-
-impl GouacheWindow {
-    fn open(width: f32, height: f32) -> GouacheWindow {
-        let event_loop = EventLoop::new();
-        let window_builder = WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(width, height))
-            .with_title("gouache");
-        let context = ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGl, (4, 6)))
-            .with_vsync(false)
-            .build_windowed(window_builder, &event_loop)
-            .unwrap();
-        let context = unsafe { context.make_current() }.unwrap();
-
-        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
-
-        GouacheWindow {
-            event_loop,
-            context,
-        }
-    }
-
-    fn run(self, mut draw: impl FnMut(&ContextWrapper<PossiblyCurrent, Window>) + 'static)
-    where
-        Self: 'static,
-    {
-        self.event_loop
-            .run(move |event, _, control_flow| match event {
-                Event::MainEventsCleared => {
-                    self.context.window().request_redraw();
-                }
-                Event::RedrawRequested(..) => {
-                    draw(&self.context);
-                }
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    _ => {}
-                },
-                _ => {}
-            });
-    }
 }
 
 struct Component {
@@ -423,27 +246,11 @@ impl Text {
     }
 }
 
-fn main() {
-    const SCREEN_WIDTH: f32 = 800.0;
-    const SCREEN_HEIGHT: f32 = 600.0;
-    let window = GouacheWindow::open(SCREEN_WIDTH, SCREEN_HEIGHT);
+const SCREEN_WIDTH: f32 = 800.0;
+const SCREEN_HEIGHT: f32 = 600.0;
 
-    let mut timers: VecDeque<TimerQuery> = VecDeque::with_capacity(64);
-
-    let prog = Program::new(
-        &CString::new(include_bytes!("vert.glsl") as &[u8]).unwrap(),
-        &CString::new(include_bytes!("frag.glsl") as &[u8]).unwrap(),
-    )
-    .unwrap();
-
-    unsafe {
-        gl::BlendFunc(gl::ONE, gl::ONE_MINUS_SRC_ALPHA);
-        gl::Enable(gl::BLEND);
-        gl::Enable(gl::FRAMEBUFFER_SRGB);
-    }
-
-    const TEXT: &'static str =
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+const TEXT: &'static str =
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
 incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
 nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
@@ -463,7 +270,83 @@ nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis,
 laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu,
 feugiat in, orci. In hac habitasse platea dictumst.";
 
-    const SIZE: f32 = 18.0;
+const SIZE: f32 = 18.0;
+
+struct GouacheHandler {
+    timers: VecDeque<TimerQuery>,
+    prog: Program,
+    vao: GLuint,
+    vbo: GLuint,
+    ibo: GLuint,
+    vertices_len: usize,
+}
+
+impl Handler for GouacheHandler {
+    fn scroll(&mut self, dx: f32, dy: f32) {}
+    fn mouse_down(&mut self) {}
+    fn mouse_up(&mut self) {}
+    fn mouse_move(&mut self, dx: f32, dy: f32) {}
+
+    fn render(&mut self, context: &GlContext) {
+        while let Some(timer) = self.timers.front() {
+            if let Some(elapsed) = timer.elapsed() {
+                println!("elapsed: {}", elapsed);
+                let _ = self.timers.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        unsafe {
+            gl::ClearColor(0.7, 0.7, 0.75, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+
+        self.prog.bind();
+
+        unsafe {
+            gl::Uniform2f(0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        }
+
+        unsafe {
+            gl::BindVertexArray(self.vao);
+        }
+
+        let timer = TimerQuery::new();
+        timer.begin();
+
+        unsafe {
+            gl::DrawElements(
+                gl::TRIANGLES,
+                self.vertices_len as i32,
+                gl::UNSIGNED_SHORT,
+                0 as *const GLvoid,
+            );
+        }
+
+        timer.end();
+        self.timers.push_back(timer);
+
+        context.swap_buffers().unwrap();
+    }
+}
+
+fn main() {
+    let window = Window::open(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    let mut timers: VecDeque<TimerQuery> = VecDeque::with_capacity(64);
+
+    let prog = Program::new(
+        &CString::new(include_bytes!("vert.glsl") as &[u8]).unwrap(),
+        &CString::new(include_bytes!("frag.glsl") as &[u8]).unwrap(),
+    )
+    .unwrap();
+
+    unsafe {
+        gl::BlendFunc(gl::ONE, gl::ONE_MINUS_SRC_ALPHA);
+        gl::Enable(gl::BLEND);
+        gl::Enable(gl::FRAMEBUFFER_SRGB);
+    }
 
     let mut text = Text::new();
     let (vertices, indices) = text.layout(Vec2::new(0.0, -2.0 * SIZE + SCREEN_HEIGHT), SIZE, TEXT);
@@ -504,46 +387,7 @@ feugiat in, orci. In hac habitasse platea dictumst.";
         );
     }
 
-    window.run(move |context| {
-        while let Some(timer) = timers.front() {
-            if let Some(elapsed) = timer.elapsed() {
-                println!("elapsed: {}", elapsed);
-                let _ = timers.pop_front();
-            } else {
-                break;
-            }
-        }
+    let vertices_len = vertices.len();
 
-        unsafe {
-            gl::ClearColor(0.7, 0.7, 0.75, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-        }
-
-        prog.bind();
-
-        unsafe {
-            gl::Uniform2f(0, SCREEN_WIDTH, SCREEN_HEIGHT);
-        }
-
-        unsafe {
-            gl::BindVertexArray(vao);
-        }
-
-        let timer = TimerQuery::new();
-        timer.begin();
-
-        unsafe {
-            gl::DrawElements(
-                gl::TRIANGLES,
-                vertices.len() as i32,
-                gl::UNSIGNED_SHORT,
-                0 as *const GLvoid,
-            );
-        }
-
-        timer.end();
-        timers.push_back(timer);
-
-        context.swap_buffers().unwrap();
-    });
+    window.run(GouacheHandler { timers, prog, vao, vbo, ibo, vertices_len });
 }
