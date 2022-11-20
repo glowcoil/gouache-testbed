@@ -4,7 +4,7 @@ mod render;
 mod window;
 
 use std::collections::{HashMap, VecDeque};
-use std::ffi::CString;
+use std::ffi::{c_void, CString};
 
 use ttf_parser::Font;
 
@@ -46,19 +46,34 @@ unsafe impl VertexFormat for GlyphVertex {
 struct GlyphUniforms {
     screen_size: [f32; 2],
     transform: [f32; 16],
+    components: TextureId,
+    points: TextureId,
 }
 
 unsafe impl UniformFormat for GlyphUniforms {
     fn uniforms() -> Vec<Uniform> {
-        vec![Uniform {
-            location: 0,
-            type_: UniformType::Float2,
-            offset: unsafe { offset_of!(GlyphUniforms, screen_size) },
-        }, Uniform {
-            location: 1,
-            type_: UniformType::Float4x4,
-            offset: unsafe { offset_of!(GlyphUniforms, transform) },
-        }]
+        vec![
+            Uniform {
+                location: 0,
+                type_: UniformType::Float2,
+                offset: unsafe { offset_of!(GlyphUniforms, screen_size) },
+            },
+            Uniform {
+                location: 1,
+                type_: UniformType::Float4x4,
+                offset: unsafe { offset_of!(GlyphUniforms, transform) },
+            },
+            Uniform {
+                location: 2,
+                type_: UniformType::Texture,
+                offset: unsafe { offset_of!(GlyphUniforms, components) },
+            },
+            Uniform {
+                location: 3,
+                type_: UniformType::Texture,
+                offset: unsafe { offset_of!(GlyphUniforms, points) },
+            },
+        ]
     }
 }
 
@@ -240,6 +255,25 @@ impl Text {
 
         Mesh::new(&vertices, &indices)
     }
+
+    fn components_dimensions(&self) -> (usize, usize) {
+        (
+            self.texture_width,
+            self.components.len() / self.texture_width,
+        )
+    }
+
+    fn components(&self) -> &[u16] {
+        &self.components
+    }
+
+    fn points_dimensions(&self) -> (usize, usize) {
+        (self.texture_width, self.points.len() / self.texture_width)
+    }
+
+    fn points(&self) -> &[u16] {
+        &self.points
+    }
 }
 
 struct Glyph {
@@ -296,6 +330,8 @@ struct GouacheHandler {
     timers: VecDeque<TimerQuery>,
     prog: Program<GlyphUniforms, GlyphVertex>,
     mesh: Mesh<GlyphVertex>,
+    components: Texture,
+    points: Texture,
 
     layout: TextLayout,
 
@@ -358,6 +394,8 @@ impl Handler for GouacheHandler {
             &GlyphUniforms {
                 screen_size: [SCREEN_WIDTH, SCREEN_HEIGHT],
                 transform: transform.0,
+                components: self.components.id(),
+                points: self.points.id(),
             },
             &self.mesh,
         );
@@ -391,10 +429,32 @@ fn main() {
     let layout = text.layout(SIZE, TEXT);
     let mesh = text.mesh(&layout);
 
+    let (components_width, components_height) = text.components_dimensions();
+    let components = unsafe {
+        Texture::new(
+            TextureFormat::Rg16Ui,
+            components_width,
+            components_height,
+            text.components().as_ptr() as *const c_void,
+        )
+    };
+
+    let (points_width, points_height) = text.points_dimensions();
+    let points = unsafe {
+        Texture::new(
+            TextureFormat::Rg16Unorm,
+            points_width,
+            points_height,
+            text.points().as_ptr() as *const c_void,
+        )
+    };
+
     window.run(GouacheHandler {
         timers,
         prog,
         mesh,
+        components,
+        points,
 
         layout,
 
