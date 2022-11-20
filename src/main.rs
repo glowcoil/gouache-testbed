@@ -45,6 +45,7 @@ unsafe impl VertexFormat for GlyphVertex {
 #[repr(C)]
 struct GlyphUniforms {
     screen_size: [f32; 2],
+    transform: [f32; 16],
 }
 
 unsafe impl UniformFormat for GlyphUniforms {
@@ -53,6 +54,10 @@ unsafe impl UniformFormat for GlyphUniforms {
             location: 0,
             type_: UniformType::Float2,
             offset: unsafe { offset_of!(GlyphUniforms, screen_size) },
+        }, Uniform {
+            location: 1,
+            type_: UniformType::Float4x4,
+            offset: unsafe { offset_of!(GlyphUniforms, transform) },
         }]
     }
 }
@@ -236,13 +241,43 @@ feugiat in, orci. In hac habitasse platea dictumst.";
 const SIZE: f32 = 18.0;
 
 struct GouacheHandler {
-    layout: TextLayout,
     timers: VecDeque<TimerQuery>,
     prog: Program<GlyphUniforms, GlyphVertex>,
     mesh: Mesh<GlyphVertex>,
+
+    layout: TextLayout,
+
+    dragging: bool,
+    cursor: Vec2,
+    z: f32,
+    rotate: Mat4x4,
 }
 
 impl Handler for GouacheHandler {
+    fn scroll(&mut self, _dx: f32, dy: f32) {
+        self.z *= 0.995f32.powf(-dy);
+    }
+
+    fn mouse_down(&mut self) {
+        self.dragging = true;
+    }
+
+    fn mouse_up(&mut self) {
+        self.dragging = false;
+    }
+
+    fn mouse_move(&mut self, x: f32, y: f32) {
+        let new_cursor = Vec2::new(x, y);
+
+        if self.dragging {
+            let delta = new_cursor - self.cursor;
+            self.rotate *= Mat4x4::rotate_zx(delta.x * std::f32::consts::PI / 512.0);
+            self.rotate *= Mat4x4::rotate_yz(delta.y * std::f32::consts::PI / 512.0);
+        }
+
+        self.cursor = new_cursor;
+    }
+
     fn render(&mut self, context: &GlContext) {
         while let Some(timer) = self.timers.front() {
             if let Some(elapsed) = timer.elapsed() {
@@ -258,12 +293,19 @@ impl Handler for GouacheHandler {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
+        let model = Mat4x4::scale(0.1)
+            * Mat4x4::translate(-0.5 * self.layout.width(), 0.5 * self.layout.height(), 0.0);
+        let view = Mat4x4::translate(0.0, 0.0, -1.0 - self.z) * self.rotate;
+        let proj = Mat4x4::perspective(std::f32::consts::PI / 4.0, SCREEN_WIDTH / SCREEN_HEIGHT, 0.1, 10000.0);
+        let transform = proj * view * model;
+
         let timer = TimerQuery::new();
         timer.begin();
 
         self.prog.draw(
             &GlyphUniforms {
                 screen_size: [SCREEN_WIDTH, SCREEN_HEIGHT],
+                transform: transform.0,
             },
             &self.mesh,
         );
@@ -297,9 +339,15 @@ fn main() {
     let mesh = text.mesh(&layout);
 
     window.run(GouacheHandler {
-        layout,
         timers,
         prog,
         mesh,
+
+        layout,
+
+        dragging: false,
+        cursor: Vec2::new(-1.0, -1.0),
+        z: 70.0,
+        rotate: Mat4x4::id(),
     });
 }

@@ -12,8 +12,8 @@ pub trait Handler {
     }
     fn mouse_down(&mut self) {}
     fn mouse_up(&mut self) {}
-    fn mouse_move(&mut self, dx: f32, dy: f32) {
-        let _ = (dx, dy);
+    fn mouse_move(&mut self, x: f32, y: f32) {
+        let _ = (x, y);
     }
     fn render(&mut self, context: &GlContext) {
         let _ = context;
