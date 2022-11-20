@@ -98,26 +98,46 @@ impl PathBuilder {
     }
 
     pub fn build(&self) -> Path {
-        if self.points.is_empty() {
-            return Path {
-                min: Vec2::new(0.0, 0.0),
-                max: Vec2::new(0.0, 0.0),
-            };
-        }
-
-        let mut min = self.points[0];
-        let mut max = self.points[0];
+        let mut min = self.points.get(0).copied().unwrap_or(Vec2::new(0.0, 0.0));
+        let mut max = self.points.get(0).copied().unwrap_or(Vec2::new(0.0, 0.0));
 
         for &point in self.points.iter() {
             min = min.min(point);
             max = max.max(point);
         }
 
-        Path { min, max }
+        let mut components = Vec::with_capacity(self.components.len() * 2);
+        for component in self.components.iter() {
+            components.extend_from_slice(&[
+                component.start.try_into().unwrap(),
+                component.end.try_into().unwrap(),
+            ]);
+        }
+
+        fn to_u16_unorm(value: f32, min: f32, max: f32) -> u16 {
+            (std::u16::MAX as f32 * ((value - min) / (max - min))).round() as u16
+        }
+
+        let mut points = Vec::with_capacity(self.points.len() * 2);
+        for point in self.points.iter() {
+            points.extend_from_slice(&[
+                to_u16_unorm(point.x, min.x, max.x),
+                to_u16_unorm(point.y, min.y, max.y),
+            ]);
+        }
+
+        Path {
+            min,
+            max,
+            components,
+            points,
+        }
     }
 }
 
 pub struct Path {
     pub min: Vec2,
     pub max: Vec2,
+    pub components: Vec<u16>,
+    pub points: Vec<u16>,
 }
