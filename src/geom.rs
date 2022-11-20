@@ -291,10 +291,7 @@ impl Mat4x4 {
     #[inline]
     pub fn id() -> Mat4x4 {
         Mat4x4([
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
         ])
     }
 
@@ -303,10 +300,7 @@ impl Mat4x4 {
     #[inline]
     pub fn scale(scale: f32) -> Mat4x4 {
         Mat4x4([
-            scale, 0.0, 0.0, 0.0,
-            0.0, scale, 0.0, 0.0,
-            0.0, 0.0, scale, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, 1.0,
         ])
     }
 
@@ -315,10 +309,7 @@ impl Mat4x4 {
     #[inline]
     pub fn translate(x: f32, y: f32, z: f32) -> Mat4x4 {
         Mat4x4([
-            1.0, 0.0, 0.0, x,
-            0.0, 1.0, 0.0, y,
-            0.0, 0.0, 1.0, z,
-            0.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, x, 0.0, 1.0, 0.0, y, 0.0, 0.0, 1.0, z, 0.0, 0.0, 0.0, 1.0,
         ])
     }
 
@@ -329,10 +320,22 @@ impl Mat4x4 {
     #[inline]
     pub fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Mat4x4 {
         Mat4x4([
-            2.0 / (right - left), 0.0, 0.0, -(right + left) / (right - left),
-            0.0, 2.0 / (top - bottom), 0.0, -(top + bottom) / (top - bottom),
-            0.0, 0.0, -2.0 / (far - near), -(far + near) / (far - near),
-            0.0, 0.0, 0.0, 1.0,
+            2.0 / (right - left),
+            0.0,
+            0.0,
+            -(right + left) / (right - left),
+            0.0,
+            2.0 / (top - bottom),
+            0.0,
+            -(top + bottom) / (top - bottom),
+            0.0,
+            0.0,
+            -2.0 / (far - near),
+            -(far + near) / (far - near),
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         ])
     }
 
@@ -344,13 +347,24 @@ impl Mat4x4 {
     pub fn perspective(fovy: f32, aspect: f32, z_near: f32, z_far: f32) -> Mat4x4 {
         let f = 1.0 / (fovy / 2.0).tan();
         Mat4x4([
-            f / aspect, 0.0, 0.0, 0.0,
-            0.0, f, 0.0, 0.0,
-            0.0, 0.0, (z_far + z_near) / (z_near - z_far), (2.0 * z_far * z_near) / (z_near - z_far),
-            0.0, 0.0, -1.0, 0.0,
+            f / aspect,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            f,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            (z_far + z_near) / (z_near - z_far),
+            (2.0 * z_far * z_near) / (z_near - z_far),
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
         ])
     }
-
 
     /// Constructs a viewing transformation matrix from an eye point, a
     /// reference point, and an up vector.
@@ -362,10 +376,7 @@ impl Mat4x4 {
         let s = f.cross(up.normalized());
         let u = s.normalized().cross(f);
         Mat4x4([
-            s.x, s.y, s.z, 0.0,
-            u.x, u.y, u.z, 0.0,
-            -f.x, -f.y, -f.z, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            s.x, s.y, s.z, 0.0, u.x, u.y, u.z, 0.0, -f.x, -f.y, -f.z, 0.0, 0.0, 0.0, 0.0, 1.0,
         ])
     }
 
@@ -373,10 +384,22 @@ impl Mat4x4 {
     #[inline]
     pub fn rotate_xy(angle: f32) -> Mat4x4 {
         Mat4x4([
-            angle.cos(), -angle.sin(), 0.0, 0.0,
-            angle.sin(), angle.cos(), 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            angle.cos(),
+            -angle.sin(),
+            0.0,
+            0.0,
+            angle.sin(),
+            angle.cos(),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         ])
     }
 
@@ -384,10 +407,22 @@ impl Mat4x4 {
     #[inline]
     pub fn rotate_yz(angle: f32) -> Mat4x4 {
         Mat4x4([
-            1.0, 0.0, 0.0, 0.0,
-            0.0, angle.cos(), -angle.sin(), 0.0,
-            0.0, angle.sin(), angle.cos(), 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            angle.cos(),
+            -angle.sin(),
+            0.0,
+            0.0,
+            angle.sin(),
+            angle.cos(),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         ])
     }
 
@@ -395,10 +430,22 @@ impl Mat4x4 {
     #[inline]
     pub fn rotate_zx(angle: f32) -> Mat4x4 {
         Mat4x4([
-            angle.cos(), 0.0, angle.sin(), 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            -angle.sin(), 0.0, angle.cos(), 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            angle.cos(),
+            0.0,
+            angle.sin(),
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -angle.sin(),
+            0.0,
+            angle.cos(),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         ])
     }
 }
