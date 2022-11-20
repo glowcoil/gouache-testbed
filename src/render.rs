@@ -257,12 +257,12 @@ impl<V: VertexFormat> Mesh<V> {
                 gl::DYNAMIC_DRAW,
             );
 
-            for attrib in V::attribs() {
+            for (index, attrib) in V::attribs().into_iter().enumerate() {
                 let type_ = match attrib.type_ {
                     AttribType::Float => gl::FLOAT,
                 };
 
-                gl::EnableVertexAttribArray(0);
+                gl::EnableVertexAttribArray(index.try_into().unwrap());
                 gl::VertexAttribPointer(
                     attrib.location.try_into().unwrap(),
                     attrib.dimension.try_into().unwrap(),
