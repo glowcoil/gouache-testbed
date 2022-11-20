@@ -29,16 +29,39 @@ macro_rules! offset_of {
 #[repr(C)]
 struct GlyphVertex {
     pos: [f32; 3],
+    uv: [f32; 2],
+    components_range: [u32; 2],
+    points_range: [u32; 2],
 }
 
 unsafe impl VertexFormat for GlyphVertex {
     fn attribs() -> Vec<VertexAttrib> {
-        vec![VertexAttrib {
-            location: 0,
-            type_: AttribType::Float,
-            dimension: 3,
-            offset: unsafe { offset_of!(GlyphVertex, pos) },
-        }]
+        vec![
+            VertexAttrib {
+                location: 0,
+                type_: AttribType::Float,
+                dimension: 3,
+                offset: unsafe { offset_of!(GlyphVertex, pos) },
+            },
+            VertexAttrib {
+                location: 1,
+                type_: AttribType::Float,
+                dimension: 2,
+                offset: unsafe { offset_of!(GlyphVertex, uv) },
+            },
+            VertexAttrib {
+                location: 2,
+                type_: AttribType::Uint,
+                dimension: 2,
+                offset: unsafe { offset_of!(GlyphVertex, components_range) },
+            },
+            VertexAttrib {
+                location: 3,
+                type_: AttribType::Uint,
+                dimension: 2,
+                offset: unsafe { offset_of!(GlyphVertex, points_range) },
+            },
+        ]
     }
 }
 
@@ -226,6 +249,9 @@ impl Text {
                         glyph.pos.y + layout.scale * glyph_entry.path.min.y,
                         0.0,
                     ],
+                    uv: [0.0, 0.0],
+                    components_range: glyph_entry.components_range,
+                    points_range: glyph_entry.points_range,
                 },
                 GlyphVertex {
                     pos: [
@@ -233,6 +259,9 @@ impl Text {
                         glyph.pos.y + layout.scale * glyph_entry.path.min.y,
                         0.0,
                     ],
+                    uv: [1.0, 0.0],
+                    components_range: glyph_entry.components_range,
+                    points_range: glyph_entry.points_range,
                 },
                 GlyphVertex {
                     pos: [
@@ -240,6 +269,9 @@ impl Text {
                         glyph.pos.y + layout.scale * glyph_entry.path.max.y,
                         0.0,
                     ],
+                    uv: [1.0, 1.0],
+                    components_range: glyph_entry.components_range,
+                    points_range: glyph_entry.points_range,
                 },
                 GlyphVertex {
                     pos: [
@@ -247,6 +279,9 @@ impl Text {
                         glyph.pos.y + layout.scale * glyph_entry.path.max.y,
                         0.0,
                     ],
+                    uv: [0.0, 1.0],
+                    components_range: glyph_entry.components_range,
+                    points_range: glyph_entry.points_range,
                 },
             ]);
             indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
