@@ -4,7 +4,7 @@ mod render;
 mod window;
 
 use std::collections::{HashMap, VecDeque};
-use std::ffi::{c_void, CString};
+use std::ffi::{c_void, CString, CStr};
 
 use ttf_parser::Font;
 
@@ -77,22 +77,22 @@ unsafe impl UniformFormat for GlyphUniforms {
     fn uniforms() -> Vec<Uniform> {
         vec![
             Uniform {
-                location: 0,
+                name: CStr::from_bytes_with_nul(b"uScreenSize\0").unwrap(),
                 type_: UniformType::Float2,
                 offset: unsafe { offset_of!(GlyphUniforms, screen_size) },
             },
             Uniform {
-                location: 1,
+                name: CStr::from_bytes_with_nul(b"uTransform\0").unwrap(),
                 type_: UniformType::Float4x4,
                 offset: unsafe { offset_of!(GlyphUniforms, transform) },
             },
             Uniform {
-                location: 2,
+                name: CStr::from_bytes_with_nul(b"uComponents\0").unwrap(),
                 type_: UniformType::Texture,
                 offset: unsafe { offset_of!(GlyphUniforms, components) },
             },
             Uniform {
-                location: 3,
+                name: CStr::from_bytes_with_nul(b"uPoints\0").unwrap(),
                 type_: UniformType::Texture,
                 offset: unsafe { offset_of!(GlyphUniforms, points) },
             },

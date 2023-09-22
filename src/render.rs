@@ -69,7 +69,7 @@ pub enum UniformType {
 }
 
 pub struct Uniform {
-    pub location: usize,
+    pub name: &'static CStr,
     pub type_: UniformType,
     pub offset: isize,
 }
@@ -119,7 +119,7 @@ impl<U: UniformFormat, V: VertexFormat> Program<U, V> {
             let mut texture_slot = 0;
 
             for uniform in U::uniforms() {
-                let location = uniform.location.try_into().unwrap();
+                let location = gl::GetUniformLocation(self.id, uniform.name.as_ptr());
                 let ptr = (uniforms as *const U as *const c_void).offset(uniform.offset);
 
                 match uniform.type_ {

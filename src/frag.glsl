@@ -1,10 +1,10 @@
-#version 460
+#version 410
 
 const uint mask = 0xFFF;
 const uint shift = 12;
 
-layout(location = 2) uniform usampler2D uComponents;
-layout(location = 3) uniform sampler2D uPoints;
+uniform usampler2D uComponents;
+uniform sampler2D uPoints;
 
 layout(location = 0) in vec2 vUv;
 layout(location = 1) flat in uvec2 vComponentsRange;
