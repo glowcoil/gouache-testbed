@@ -403,7 +403,7 @@ impl Handler for GouacheHandler {
     fn render(&mut self, context: &GlContext) {
         while let Some(timer) = self.timers.front() {
             if let Some(elapsed) = timer.elapsed() {
-                println!("elapsed: {}", elapsed);
+                println!("elapsed: {} ms", elapsed as f64 / 1e6);
                 let _ = self.timers.pop_front();
             } else {
                 break;
