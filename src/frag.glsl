@@ -41,12 +41,13 @@ void main() {
             vec2 p2 = view * (fetch(uPoints, j + 1).xy) + offset;
             vec2 p3 = view * (fetch(uPoints, j + 2).xy) + offset;
 
+            vec2 start = clamp(p1, 0.0, 1.0);
+            vec2 end = clamp(p3, 0.0, 1.0);
+
             if ((p1.y < 0.0 && p2.y < 0.0 && p3.y < 0.0) ||
                 (p1.y > 1.0 && p2.y > 1.0 && p3.y > 1.0) ||
                 (p1.x < 0.0 && p2.x < 0.0 && p3.x < 0.0) ||
                 (p1.x > 1.0 && p2.x > 1.0 && p3.x > 1.0)) {
-                vec2 start = clamp(p1, 0.0, 1.0);
-                vec2 end = clamp(p3, 0.0, 1.0);
                 alpha += 0.5 * (start.x + end.x) * (end.y - start.y);
                 continue;
             }
@@ -126,15 +127,14 @@ void main() {
                 }
             }
 
-            vec2 prev = clamp(p1, 0.0, 1.0);
+            vec2 prev = start;
             float coverage = 0.0;
             for (int i = 0; i < count; i++) {
                 vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
                 coverage += 0.5 * (prev.x + next.x) * (next.y - prev.y);
                 prev = next;
             }
-            vec2 next = clamp(p3, 0.0, 1.0);
-            coverage += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            coverage += 0.5 * (prev.x + end.x) * (end.y - prev.y);
 
             alpha += coverage;
         }
