@@ -31,15 +31,15 @@ void main() {
     vec2 ddx = dFdx(vUv);
     vec2 ddy = dFdy(vUv);
     mat2x2 view = inverse(mat2(ddx, ddy));
-    vec2 offset = vec2(0.5, 0.5);
+    vec2 offset = vec2(0.5, 0.5) - view * vUv;
 
     float alpha = 0.0;
     for (uint i = vComponentsRange.x; i < vComponentsRange.y; i++) {
         uvec2 component = ufetch(uComponents, i).xy;
         for (uint j = vPointsRange.x + component.x; j + 2 < vPointsRange.x + component.y; j += 2) {
-            vec2 p1 = view * (fetch(uPoints, j).xy - vUv) + offset;
-            vec2 p2 = view * (fetch(uPoints, j + 1).xy - vUv) + offset;
-            vec2 p3 = view * (fetch(uPoints, j + 2).xy - vUv) + offset;
+            vec2 p1 = view * (fetch(uPoints, j).xy) + offset;
+            vec2 p2 = view * (fetch(uPoints, j + 1).xy) + offset;
+            vec2 p3 = view * (fetch(uPoints, j + 2).xy) + offset;
 
             if ((p1.y < 0.0 && p2.y < 0.0 && p3.y < 0.0) ||
                 (p1.y > 1.0 && p2.y > 1.0 && p3.y > 1.0) ||
