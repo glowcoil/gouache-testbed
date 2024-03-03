@@ -22,40 +22,120 @@ uvec4 ufetch(usampler2D tex, uint index) {
     return texelFetch(tex, coords, 0);
 }
 
+vec2 eval(vec2 p1, vec2 p2, vec2 p3, float t) {
+    return mix(mix(p1, p2, t), mix(p2, p3, t), t);
+}
+
 void main() {
     oColor = vec4(1.f, 0.f, 1.f, 1.f);
     vec2 ddx = dFdx(vUv);
     vec2 ddy = dFdy(vUv);
     mat2x2 view = inverse(mat2(ddx, ddy));
+    vec2 offset = vec2(0.5, 0.5);
 
     float alpha = 0.0;
     for (uint i = vComponentsRange.x; i < vComponentsRange.y; i++) {
         uvec2 component = ufetch(uComponents, i).xy;
         for (uint j = vPointsRange.x + component.x; j + 2 < vPointsRange.x + component.y; j += 2) {
-            vec2 p1 = view * (fetch(uPoints, j).xy - vUv);
-            vec2 p2 = view * (fetch(uPoints, j + 1).xy - vUv);
-            vec2 p3 = view * (fetch(uPoints, j + 2).xy - vUv);
+            vec2 p1 = view * (fetch(uPoints, j).xy - vUv) + offset;
+            vec2 p2 = view * (fetch(uPoints, j + 1).xy - vUv) + offset;
+            vec2 p3 = view * (fetch(uPoints, j + 2).xy - vUv) + offset;
 
-            vec2 yWindow = clamp(vec2(p3.y, p1.y), -0.5, 0.5);
-            float yOverlap = yWindow.y - yWindow.x;
+            if ((p1.y < 0.0 && p2.y < 0.0 && p3.y < 0.0) ||
+                (p1.y > 1.0 && p2.y > 1.0 && p3.y > 1.0) ||
+                (p1.x < 0.0 && p2.x < 0.0 && p3.x < 0.0) ||
+                (p1.x > 1.0 && p2.x > 1.0 && p3.x > 1.0)) {
+                vec2 start = clamp(p1, 0.0, 1.0);
+                vec2 end = clamp(p3, 0.0, 1.0);
+                alpha += 0.5 * (start.x + end.x) * (end.y - start.y);
+                continue;
+            }
 
-            float coverage = yOverlap * float(max(p1.x, p3.x) > -0.5);
-            if (yOverlap != 0.0 && max(p1.x, p3.x) > -0.5 && min(p1.x, p3.x) < 0.5) {
+            int count = 0;
+            float points[8];
+
+            {
                 float a = p1.y - 2.0 * p2.y + p3.y;
                 float b = p2.y - p1.y;
-                float c = p1.y - 0.5 * (yWindow.x + yWindow.y);
-                float q = -(b + (b < 0.0 ? -1.0 : 1.0) * sqrt(max(b * b - a * c, 0.0)));
-                float ta = q / a;
-                float tb = c / q;
-                float t = (0.0 <= ta && ta <= 1.0) ? ta : tb;
-                float x = mix(mix(p1.x, p2.x, t), mix(p2.x, p3.x, t), t);
+                float b2 = b * b;
+                float sign = b < 0.0 ? -1.0 : 1.0;
+                float q1 = -(b + sign * sqrt(max(b2 - a * p1.y, 0.0)));
+                float t1 = q1 / a;
+                float t2 = p1.y / q1;
 
-                vec2 tangent = mix(p2 - p1, p3 - p2, t);
-                float f = (x * abs(tangent.y)) / length(tangent);
-                float x_overlap = clamp(0.5 + f, 0.0, 1.0);
+                float q2 = -(b + sign * sqrt(max(b2 - a * (p1.y - 1.0), 0.0)));
+                float t3 = q2 / a;
+                float t4 = (p1.y - 1.0) / q2;
 
-                coverage *= x_overlap;
+                if (t1 > 0.0 && t1 < 1.0) {
+                    points[count] = t1;
+                    count += 1;
+                }
+                if (t2 > 0.0 && t2 < 1.0) {
+                    points[count] = t2;
+                    count += 1;
+                }
+                if (t3 > 0.0 && t3 < 1.0) {
+                    points[count] = t3;
+                    count += 1;
+                }
+                if (t4 > 0.0 && t4 < 1.0) {
+                    points[count] = t4;
+                    count += 1;
+                }
             }
+
+            {
+                float a = p1.x - 2.0 * p2.x + p3.x;
+                float b = p2.x - p1.x;
+                float b2 = b * b;
+                float sign = b < 0.0 ? -1.0 : 1.0;
+                float q1 = -(b + sign * sqrt(max(b2 - a * p1.x, 0.0)));
+                float t5 = q1 / a;
+                float t6 = p1.x / q1;
+
+                float q2 = -(b + sign * sqrt(max(b2 - a * (p1.x - 1.0), 0.0)));
+                float t7 = q2 / a;
+                float t8 = (p1.x - 1.0) / q2;
+
+                if (t5 > 0.0 && t5 < 1.0) {
+                    points[count] = t5;
+                    count += 1;
+                }
+                if (t6 > 0.0 && t6 < 1.0) {
+                    points[count] = t6;
+                    count += 1;
+                }
+                if (t7 > 0.0 && t7 < 1.0) {
+                    points[count] = t7;
+                    count += 1;
+                }
+                if (t8 > 0.0 && t8 < 1.0) {
+                    points[count] = t8;
+                    count += 1;
+                }
+            }
+
+            for (int i = 0; i < count; i++) {
+                for (int j = i + 1; j < count; j++) {
+                    if (points[j] < points[i]) {
+                        float tmp = points[i];
+                        points[i] = points[j];
+                        points[j] = tmp;
+                    }
+                }
+            }
+
+            vec2 prev = clamp(p1, 0.0, 1.0);
+            float coverage = 0.0;
+            for (int i = 0; i < count; i++) {
+                vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
+                coverage += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+                prev = next;
+            }
+            vec2 next = clamp(p3, 0.0, 1.0);
+            coverage += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+
             alpha += coverage;
         }
     }
