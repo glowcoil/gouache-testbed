@@ -128,15 +128,12 @@ void main() {
             }
 
             vec2 prev = start;
-            float coverage = 0.0;
             for (int i = 0; i < count; i++) {
                 vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
-                coverage += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+                alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
                 prev = next;
             }
-            coverage += 0.5 * (prev.x + end.x) * (end.y - prev.y);
-
-            alpha += coverage;
+            alpha += 0.5 * (prev.x + end.x) * (end.y - prev.y);
         }
     }
 
