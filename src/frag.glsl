@@ -53,7 +53,6 @@ void main() {
             }
 
             float t1, t2, t3, t4;
-
             {
                 float a = p1.y - 2.0 * p2.y + p3.y;
                 float b = p2.y - p1.y;
@@ -75,17 +74,6 @@ void main() {
                 t2 = max(t0min, t1min);
                 t3 = min(t0max, t1max);
                 t4 = max(t0max, t1max);
-            }
-
-            vec2 point1 = clamp(eval(p1, p2, p3, t1), 0.0, 1.0);
-            vec2 point2 = clamp(eval(p1, p2, p3, t2), 0.0, 1.0);
-            vec2 point3 = clamp(eval(p1, p2, p3, t3), 0.0, 1.0);
-            vec2 point4 = clamp(eval(p1, p2, p3, t4), 0.0, 1.0);
-
-            if (point1.x == point2.x && point3.x == point4.x) {
-                alpha += 0.5 * (point1.x + point2.x) * (point2.y - point1.y);
-                alpha += 0.5 * (point3.x + point4.x) * (point4.y - point3.y);
-                continue;
             }
 
             float t5, t6, t7, t8;
@@ -112,7 +100,9 @@ void main() {
                 t8 = max(t0max, t1max);
             }
 
-            if (point1.x > 0.0 || point2.x > 0.0) {
+            {
+                vec2 point1 = clamp(eval(p1, p2, p3, t1), 0.0, 1.0);
+                vec2 point2 = clamp(eval(p1, p2, p3, t2), 0.0, 1.0);
                 vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t1, t2)), 0.0, 1.0);
                 vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t1, t2)), 0.0, 1.0);
                 vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t1, t2)), 0.0, 1.0);
@@ -124,7 +114,9 @@ void main() {
                 alpha += 0.5 * (point8.x + point2.x) * (point2.y - point8.y);
             }
 
-            if (point3.x > 0.0 || point4.x > 0.0) {
+            {
+                vec2 point3 = clamp(eval(p1, p2, p3, t3), 0.0, 1.0);
+                vec2 point4 = clamp(eval(p1, p2, p3, t4), 0.0, 1.0);
                 vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t3, t4)), 0.0, 1.0);
                 vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t3, t4)), 0.0, 1.0);
                 vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t3, t4)), 0.0, 1.0);
