@@ -59,21 +59,12 @@ void main() {
                 float b2 = b * b;
                 float sign = b < 0.0 ? -1.0 : 1.0;
                 float q1 = -(b + sign * sqrt(max(b2 - a * p1.y, 0.0)));
-                float t0a = clamp(q1 / a, 0.0, 1.0);
-                float t0b = clamp(p1.y / q1, 0.0, 1.0);
+                t1 = clamp(q1 / a, 0.0, 1.0);
+                t2 = clamp(p1.y / q1, 0.0, 1.0);
 
                 float q2 = -(b + sign * sqrt(max(b2 - a * (p1.y - 1.0), 0.0)));
-                float t1a = clamp(q2 / a, 0.0, 1.0);
-                float t1b = clamp((p1.y - 1.0) / q2, 0.0, 1.0);
-
-                float t0min = min(t0a, t0b);
-                float t0max = max(t0a, t0b);
-                float t1min = min(t1a, t1b);
-                float t1max = max(t1a, t1b);
-                t1 = min(t0min, t1min);
-                t2 = max(t0min, t1min);
-                t3 = min(t0max, t1max);
-                t4 = max(t0max, t1max);
+                t3 = clamp(q2 / a, 0.0, 1.0);
+                t4 = clamp((p1.y - 1.0) / q2, 0.0, 1.0);
             }
 
             float t5, t6, t7, t8;
@@ -83,50 +74,70 @@ void main() {
                 float b2 = b * b;
                 float sign = b < 0.0 ? -1.0 : 1.0;
                 float q1 = -(b + sign * sqrt(max(b2 - a * p1.x, 0.0)));
-                float t0a = q1 / a;
-                float t0b = p1.x / q1;
+                t5 = clamp(q1 / a, 0.0, 1.0);
+                t6 = clamp(p1.x / q1, 0.0, 1.0);
 
                 float q2 = -(b + sign * sqrt(max(b2 - a * (p1.x - 1.0), 0.0)));
-                float t1a = q2 / a;
-                float t1b = (p1.x - 1.0) / q2;
-
-                float t0min = min(t0a, t0b);
-                float t0max = max(t0a, t0b);
-                float t1min = min(t1a, t1b);
-                float t1max = max(t1a, t1b);
-                t5 = min(t0min, t1min);
-                t6 = max(t0min, t1min);
-                t7 = min(t0max, t1max);
-                t8 = max(t0max, t1max);
+                t7 = clamp(q2 / a, 0.0, 1.0);
+                t8 = clamp((p1.x - 1.0) / q2, 0.0, 1.0);
             }
 
-            {
-                vec2 point1 = clamp(eval(p1, p2, p3, t1), 0.0, 1.0);
-                vec2 point2 = clamp(eval(p1, p2, p3, t2), 0.0, 1.0);
-                vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t1, t2)), 0.0, 1.0);
-                vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t1, t2)), 0.0, 1.0);
-                vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t1, t2)), 0.0, 1.0);
-                vec2 point8 = clamp(eval(p1, p2, p3, clamp(t8, t1, t2)), 0.0, 1.0);
-                alpha += 0.5 * (point1.x + point5.x) * (point5.y - point1.y);
-                alpha += 0.5 * (point5.x + point6.x) * (point6.y - point5.y);
-                alpha += 0.5 * (point6.x + point7.x) * (point7.y - point6.y);
-                alpha += 0.5 * (point7.x + point8.x) * (point8.y - point7.y);
-                alpha += 0.5 * (point8.x + point2.x) * (point2.y - point8.y);
-            }
+            float tmp;
+            tmp = t1; t1 = min(tmp, t2); t2 = max(tmp, t2);
+            tmp = t1; t1 = min(tmp, t3); t3 = max(tmp, t3);
+            tmp = t1; t1 = min(tmp, t4); t4 = max(tmp, t4);
+            tmp = t1; t1 = min(tmp, t5); t5 = max(tmp, t5);
+            tmp = t1; t1 = min(tmp, t6); t6 = max(tmp, t6);
+            tmp = t1; t1 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t1; t1 = min(tmp, t8); t8 = max(tmp, t8);
+            t1 = tmp;
+            tmp = t2; t2 = min(tmp, t3); t3 = max(tmp, t3);
+            tmp = t2; t2 = min(tmp, t4); t4 = max(tmp, t4);
+            tmp = t2; t2 = min(tmp, t5); t5 = max(tmp, t5);
+            tmp = t2; t2 = min(tmp, t6); t6 = max(tmp, t6);
+            tmp = t2; t2 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t2; t2 = min(tmp, t8); t8 = max(tmp, t8);
+            t2 = tmp;
+            tmp = t3; t3 = min(tmp, t4); t4 = max(tmp, t4);
+            tmp = t3; t3 = min(tmp, t5); t5 = max(tmp, t5);
+            tmp = t3; t3 = min(tmp, t6); t6 = max(tmp, t6);
+            tmp = t3; t3 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t3; t3 = min(tmp, t8); t8 = max(tmp, t8);
+            t3 = tmp;
+            tmp = t4; t4 = min(tmp, t5); t5 = max(tmp, t5);
+            tmp = t4; t4 = min(tmp, t6); t6 = max(tmp, t6);
+            tmp = t4; t4 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t4; t4 = min(tmp, t8); t8 = max(tmp, t8);
+            t4 = tmp;
+            tmp = t5; t5 = min(tmp, t6); t6 = max(tmp, t6);
+            tmp = t5; t5 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t5; t5 = min(tmp, t8); t8 = max(tmp, t8);
+            t5 = tmp;
+            tmp = t6; t6 = min(tmp, t7); t7 = max(tmp, t7);
+            tmp = t6; t6 = min(tmp, t8); t8 = max(tmp, t8);
+            t6 = tmp;
+            tmp = t7; t7 = min(tmp, t8); t8 = max(tmp, t8);
+            t7 = tmp;
 
-            {
-                vec2 point3 = clamp(eval(p1, p2, p3, t3), 0.0, 1.0);
-                vec2 point4 = clamp(eval(p1, p2, p3, t4), 0.0, 1.0);
-                vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t3, t4)), 0.0, 1.0);
-                vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t3, t4)), 0.0, 1.0);
-                vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t3, t4)), 0.0, 1.0);
-                vec2 point8 = clamp(eval(p1, p2, p3, clamp(t8, t3, t4)), 0.0, 1.0);
-                alpha += 0.5 * (point3.x + point5.x) * (point5.y - point3.y);
-                alpha += 0.5 * (point5.x + point6.x) * (point6.y - point5.y);
-                alpha += 0.5 * (point6.x + point7.x) * (point7.y - point6.y);
-                alpha += 0.5 * (point7.x + point8.x) * (point8.y - point7.y);
-                alpha += 0.5 * (point8.x + point4.x) * (point4.y - point8.y);
-            }
+            vec2 prev = start;
+            vec2 next;
+            next = clamp(eval(p1, p2, p3, t1), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t2), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t3), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t4), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t5), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t6), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t7), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; next = clamp(eval(p1, p2, p3, t8), 0.0, 1.0);
+            alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+            prev = next; alpha += 0.5 * (prev.x + end.x) * (end.y - prev.y);
         }
     }
 
