@@ -52,8 +52,7 @@ void main() {
                 continue;
             }
 
-            int count = 0;
-            float points[8];
+            float t1, t2, t3, t4;
 
             {
                 float a = p1.y - 2.0 * p2.y + p3.y;
@@ -61,79 +60,81 @@ void main() {
                 float b2 = b * b;
                 float sign = b < 0.0 ? -1.0 : 1.0;
                 float q1 = -(b + sign * sqrt(max(b2 - a * p1.y, 0.0)));
-                float t1 = q1 / a;
-                float t2 = p1.y / q1;
+                float t0a = clamp(q1 / a, 0.0, 1.0);
+                float t0b = clamp(p1.y / q1, 0.0, 1.0);
 
                 float q2 = -(b + sign * sqrt(max(b2 - a * (p1.y - 1.0), 0.0)));
-                float t3 = q2 / a;
-                float t4 = (p1.y - 1.0) / q2;
+                float t1a = clamp(q2 / a, 0.0, 1.0);
+                float t1b = clamp((p1.y - 1.0) / q2, 0.0, 1.0);
 
-                if (t1 > 0.0 && t1 < 1.0) {
-                    points[count] = t1;
-                    count += 1;
-                }
-                if (t2 > 0.0 && t2 < 1.0) {
-                    points[count] = t2;
-                    count += 1;
-                }
-                if (t3 > 0.0 && t3 < 1.0) {
-                    points[count] = t3;
-                    count += 1;
-                }
-                if (t4 > 0.0 && t4 < 1.0) {
-                    points[count] = t4;
-                    count += 1;
-                }
+                float t0min = min(t0a, t0b);
+                float t0max = max(t0a, t0b);
+                float t1min = min(t1a, t1b);
+                float t1max = max(t1a, t1b);
+                t1 = min(t0min, t1min);
+                t2 = max(t0min, t1min);
+                t3 = min(t0max, t1max);
+                t4 = max(t0max, t1max);
             }
 
+            vec2 point1 = clamp(eval(p1, p2, p3, t1), 0.0, 1.0);
+            vec2 point2 = clamp(eval(p1, p2, p3, t2), 0.0, 1.0);
+            vec2 point3 = clamp(eval(p1, p2, p3, t3), 0.0, 1.0);
+            vec2 point4 = clamp(eval(p1, p2, p3, t4), 0.0, 1.0);
+
+            if (point1.x == point2.x && point3.x == point4.x) {
+                alpha += 0.5 * (point1.x + point2.x) * (point2.y - point1.y);
+                alpha += 0.5 * (point3.x + point4.x) * (point4.y - point3.y);
+                continue;
+            }
+
+            float t5, t6, t7, t8;
             {
                 float a = p1.x - 2.0 * p2.x + p3.x;
                 float b = p2.x - p1.x;
                 float b2 = b * b;
                 float sign = b < 0.0 ? -1.0 : 1.0;
                 float q1 = -(b + sign * sqrt(max(b2 - a * p1.x, 0.0)));
-                float t5 = q1 / a;
-                float t6 = p1.x / q1;
+                float t0a = q1 / a;
+                float t0b = p1.x / q1;
 
                 float q2 = -(b + sign * sqrt(max(b2 - a * (p1.x - 1.0), 0.0)));
-                float t7 = q2 / a;
-                float t8 = (p1.x - 1.0) / q2;
+                float t1a = q2 / a;
+                float t1b = (p1.x - 1.0) / q2;
 
-                if (t5 > 0.0 && t5 < 1.0) {
-                    points[count] = t5;
-                    count += 1;
-                }
-                if (t6 > 0.0 && t6 < 1.0) {
-                    points[count] = t6;
-                    count += 1;
-                }
-                if (t7 > 0.0 && t7 < 1.0) {
-                    points[count] = t7;
-                    count += 1;
-                }
-                if (t8 > 0.0 && t8 < 1.0) {
-                    points[count] = t8;
-                    count += 1;
-                }
+                float t0min = min(t0a, t0b);
+                float t0max = max(t0a, t0b);
+                float t1min = min(t1a, t1b);
+                float t1max = max(t1a, t1b);
+                t5 = min(t0min, t1min);
+                t6 = max(t0min, t1min);
+                t7 = min(t0max, t1max);
+                t8 = max(t0max, t1max);
             }
 
-            for (int i = 0; i < count; i++) {
-                for (int j = i + 1; j < count; j++) {
-                    if (points[j] < points[i]) {
-                        float tmp = points[i];
-                        points[i] = points[j];
-                        points[j] = tmp;
-                    }
-                }
+            if (point1.x > 0.0 || point2.x > 0.0) {
+                vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t1, t2)), 0.0, 1.0);
+                vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t1, t2)), 0.0, 1.0);
+                vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t1, t2)), 0.0, 1.0);
+                vec2 point8 = clamp(eval(p1, p2, p3, clamp(t8, t1, t2)), 0.0, 1.0);
+                alpha += 0.5 * (point1.x + point5.x) * (point5.y - point1.y);
+                alpha += 0.5 * (point5.x + point6.x) * (point6.y - point5.y);
+                alpha += 0.5 * (point6.x + point7.x) * (point7.y - point6.y);
+                alpha += 0.5 * (point7.x + point8.x) * (point8.y - point7.y);
+                alpha += 0.5 * (point8.x + point2.x) * (point2.y - point8.y);
             }
 
-            vec2 prev = start;
-            for (int i = 0; i < count; i++) {
-                vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
-                alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
-                prev = next;
+            if (point3.x > 0.0 || point4.x > 0.0) {
+                vec2 point5 = clamp(eval(p1, p2, p3, clamp(t5, t3, t4)), 0.0, 1.0);
+                vec2 point6 = clamp(eval(p1, p2, p3, clamp(t6, t3, t4)), 0.0, 1.0);
+                vec2 point7 = clamp(eval(p1, p2, p3, clamp(t7, t3, t4)), 0.0, 1.0);
+                vec2 point8 = clamp(eval(p1, p2, p3, clamp(t8, t3, t4)), 0.0, 1.0);
+                alpha += 0.5 * (point3.x + point5.x) * (point5.y - point3.y);
+                alpha += 0.5 * (point5.x + point6.x) * (point6.y - point5.y);
+                alpha += 0.5 * (point6.x + point7.x) * (point7.y - point6.y);
+                alpha += 0.5 * (point7.x + point8.x) * (point8.y - point7.y);
+                alpha += 0.5 * (point8.x + point4.x) * (point4.y - point8.y);
             }
-            alpha += 0.5 * (prev.x + end.x) * (end.y - prev.y);
         }
     }
 
