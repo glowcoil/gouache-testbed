@@ -26,6 +26,12 @@ vec2 eval(vec2 p1, vec2 p2, vec2 p3, float t) {
     return mix(mix(p1, p2, t), mix(p2, p3, t), t);
 }
 
+void swap(inout float a, inout float b) {
+    float tmp = a;
+    a = min(tmp, b);
+    b = max(tmp, b);
+}
+
 void main() {
     oColor = vec4(1.f, 0.f, 1.f, 1.f);
     vec2 ddx = dFdx(vUv);
@@ -82,42 +88,25 @@ void main() {
                 t8 = clamp((p1.x - 1.0) / q2, 0.0, 1.0);
             }
 
-            float tmp;
-            tmp = t1; t1 = min(tmp, t2); t2 = max(tmp, t2);
-            tmp = t1; t1 = min(tmp, t3); t3 = max(tmp, t3);
-            tmp = t1; t1 = min(tmp, t4); t4 = max(tmp, t4);
-            tmp = t1; t1 = min(tmp, t5); t5 = max(tmp, t5);
-            tmp = t1; t1 = min(tmp, t6); t6 = max(tmp, t6);
-            tmp = t1; t1 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t1; t1 = min(tmp, t8); t8 = max(tmp, t8);
-            t1 = tmp;
-            tmp = t2; t2 = min(tmp, t3); t3 = max(tmp, t3);
-            tmp = t2; t2 = min(tmp, t4); t4 = max(tmp, t4);
-            tmp = t2; t2 = min(tmp, t5); t5 = max(tmp, t5);
-            tmp = t2; t2 = min(tmp, t6); t6 = max(tmp, t6);
-            tmp = t2; t2 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t2; t2 = min(tmp, t8); t8 = max(tmp, t8);
-            t2 = tmp;
-            tmp = t3; t3 = min(tmp, t4); t4 = max(tmp, t4);
-            tmp = t3; t3 = min(tmp, t5); t5 = max(tmp, t5);
-            tmp = t3; t3 = min(tmp, t6); t6 = max(tmp, t6);
-            tmp = t3; t3 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t3; t3 = min(tmp, t8); t8 = max(tmp, t8);
-            t3 = tmp;
-            tmp = t4; t4 = min(tmp, t5); t5 = max(tmp, t5);
-            tmp = t4; t4 = min(tmp, t6); t6 = max(tmp, t6);
-            tmp = t4; t4 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t4; t4 = min(tmp, t8); t8 = max(tmp, t8);
-            t4 = tmp;
-            tmp = t5; t5 = min(tmp, t6); t6 = max(tmp, t6);
-            tmp = t5; t5 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t5; t5 = min(tmp, t8); t8 = max(tmp, t8);
-            t5 = tmp;
-            tmp = t6; t6 = min(tmp, t7); t7 = max(tmp, t7);
-            tmp = t6; t6 = min(tmp, t8); t8 = max(tmp, t8);
-            t6 = tmp;
-            tmp = t7; t7 = min(tmp, t8); t8 = max(tmp, t8);
-            t7 = tmp;
+            swap(t1, t2);
+            swap(t3, t4);
+            swap(t5, t6);
+            swap(t7, t8);
+            swap(t1, t3);
+            swap(t2, t4);
+            swap(t5, t7);
+            swap(t6, t8);
+            swap(t2, t3);
+            swap(t6, t7);
+            swap(t1, t5);
+            swap(t2, t6);
+            swap(t3, t7);
+            swap(t4, t8);
+            swap(t3, t5);
+            swap(t4, t6);
+            swap(t2, t3);
+            swap(t4, t5);
+            swap(t6, t7);
 
             vec2 prev = start;
             vec2 next;
