@@ -22,6 +22,18 @@ uvec4 ufetch(usampler2D tex, uint index) {
     return texelFetch(tex, coords, 0);
 }
 
+void solve(float x1, float x2, float x3, out float t1, out float t2, out float t3, out float t4) {
+    float a = x1 - 2.0 * x2 + x3;
+    float b = x2 - x1;
+    float b2 = b * b;
+    float q1 = -b + sqrt(max(b2 - a * x1, 0.0));
+    float q2 = -b + sqrt(max(b2 - a * (x1 - 1.0), 0.0));
+    t1 = clamp(q1 / a, 0.0, 1.0);
+    t2 = clamp(x1 / q1, 0.0, 1.0);
+    t3 = clamp(q2 / a, 0.0, 1.0);
+    t4 = clamp((x1 - 1.0) / q2, 0.0, 1.0);
+}
+
 vec2 eval(vec2 p1, vec2 p2, vec2 p3, float t) {
     return mix(mix(p1, p2, t), mix(p2, p3, t), t);
 }
@@ -58,35 +70,9 @@ void main() {
                 continue;
             }
 
-            float t1, t2, t3, t4;
-            {
-                float a = p1.y - 2.0 * p2.y + p3.y;
-                float b = p2.y - p1.y;
-                float b2 = b * b;
-                float sign = b < 0.0 ? -1.0 : 1.0;
-                float q1 = -(b + sign * sqrt(max(b2 - a * p1.y, 0.0)));
-                t1 = clamp(q1 / a, 0.0, 1.0);
-                t2 = clamp(p1.y / q1, 0.0, 1.0);
-
-                float q2 = -(b + sign * sqrt(max(b2 - a * (p1.y - 1.0), 0.0)));
-                t3 = clamp(q2 / a, 0.0, 1.0);
-                t4 = clamp((p1.y - 1.0) / q2, 0.0, 1.0);
-            }
-
-            float t5, t6, t7, t8;
-            {
-                float a = p1.x - 2.0 * p2.x + p3.x;
-                float b = p2.x - p1.x;
-                float b2 = b * b;
-                float sign = b < 0.0 ? -1.0 : 1.0;
-                float q1 = -(b + sign * sqrt(max(b2 - a * p1.x, 0.0)));
-                t5 = clamp(q1 / a, 0.0, 1.0);
-                t6 = clamp(p1.x / q1, 0.0, 1.0);
-
-                float q2 = -(b + sign * sqrt(max(b2 - a * (p1.x - 1.0), 0.0)));
-                t7 = clamp(q2 / a, 0.0, 1.0);
-                t8 = clamp((p1.x - 1.0) / q2, 0.0, 1.0);
-            }
+            float t1, t2, t3, t4, t5, t6, t7, t8;
+            solve(p1.x, p2.x, p3.x, t1, t2, t3, t4);
+            solve(p1.y, p2.y, p3.y, t5, t6, t7, t8);
 
             swap(t1, t2);
             swap(t3, t4);
