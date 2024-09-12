@@ -48,7 +48,7 @@ void main() {
                 (p1.y > 1.0 && p2.y > 1.0 && p3.y > 1.0) ||
                 (p1.x < 0.0 && p2.x < 0.0 && p3.x < 0.0) ||
                 (p1.x > 1.0 && p2.x > 1.0 && p3.x > 1.0)) {
-                alpha += 0.5 * (start.x + end.x) * (end.y - start.y);
+                alpha += (start.x + end.x) * (end.y - start.y);
                 continue;
             }
 
@@ -130,14 +130,14 @@ void main() {
             vec2 prev = start;
             for (int i = 0; i < count; i++) {
                 vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
-                alpha += 0.5 * (prev.x + next.x) * (next.y - prev.y);
+                alpha += (prev.x + next.x) * (next.y - prev.y);
                 prev = next;
             }
-            alpha += 0.5 * (prev.x + end.x) * (end.y - prev.y);
+            alpha += (prev.x + end.x) * (end.y - prev.y);
         }
     }
 
-    alpha = clamp(abs(alpha), 0.0, 1.0);
+    alpha = clamp(abs(0.5 * alpha), 0.0, 1.0);
     alpha = 1.0 - (1.0 - alpha) * (1.0 - alpha);
     oColor = alpha * vec4(0.f, 0.f, 0.f, 1.f);
 }
