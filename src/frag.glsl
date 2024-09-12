@@ -38,6 +38,17 @@ vec2 eval(vec2 p1, vec2 p2, vec2 p3, float t) {
     return mix(mix(p1, p2, t), mix(p2, p3, t), t);
 }
 
+void swap(inout float a, inout float b) {
+    float tmp = a;
+    a = min(tmp, b);
+    b = max(tmp, b);
+}
+
+void add_coverage(inout float alpha, inout vec2 prev, vec2 next) {
+    alpha += (prev.x + next.x) * (next.y - prev.y);
+    prev = next;
+}
+
 void main() {
     oColor = vec4(1.f, 0.f, 1.f, 1.f);
     vec2 ddx = dFdx(vUv);
@@ -68,59 +79,36 @@ void main() {
             solve(p1.x, p2.x, p3.x, t1, t2, t3, t4);
             solve(p1.y, p2.y, p3.y, t5, t6, t7, t8);
 
-            int count = 0;
-            float points[8];
-
-            if (t1 > 0.0 && t1 < 1.0) {
-                points[count] = t1;
-                count += 1;
-            }
-            if (t2 > 0.0 && t2 < 1.0) {
-                points[count] = t2;
-                count += 1;
-            }
-            if (t3 > 0.0 && t3 < 1.0) {
-                points[count] = t3;
-                count += 1;
-            }
-            if (t4 > 0.0 && t4 < 1.0) {
-                points[count] = t4;
-                count += 1;
-            }
-            if (t5 > 0.0 && t5 < 1.0) {
-                points[count] = t5;
-                count += 1;
-            }
-            if (t6 > 0.0 && t6 < 1.0) {
-                points[count] = t6;
-                count += 1;
-            }
-            if (t7 > 0.0 && t7 < 1.0) {
-                points[count] = t7;
-                count += 1;
-            }
-            if (t8 > 0.0 && t8 < 1.0) {
-                points[count] = t8;
-                count += 1;
-            }
-
-            for (int i = 0; i < count; i++) {
-                for (int j = i + 1; j < count; j++) {
-                    if (points[j] < points[i]) {
-                        float tmp = points[i];
-                        points[i] = points[j];
-                        points[j] = tmp;
-                    }
-                }
-            }
+            swap(t1, t2);
+            swap(t3, t4);
+            swap(t5, t6);
+            swap(t7, t8);
+            swap(t1, t3);
+            swap(t2, t4);
+            swap(t5, t7);
+            swap(t6, t8);
+            swap(t2, t3);
+            swap(t6, t7);
+            swap(t1, t5);
+            swap(t2, t6);
+            swap(t3, t7);
+            swap(t4, t8);
+            swap(t3, t5);
+            swap(t4, t6);
+            swap(t2, t3);
+            swap(t4, t5);
+            swap(t6, t7);
 
             vec2 prev = start;
-            for (int i = 0; i < count; i++) {
-                vec2 next = clamp(eval(p1, p2, p3, points[i]), 0.0, 1.0);
-                alpha += (prev.x + next.x) * (next.y - prev.y);
-                prev = next;
-            }
-            alpha += (prev.x + end.x) * (end.y - prev.y);
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t1), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t2), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t3), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t4), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t5), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t6), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t7), 0.0, 1.0));
+            add_coverage(alpha, prev, clamp(eval(p1, p2, p3, t8), 0.0, 1.0));
+            add_coverage(alpha, prev, end);
         }
     }
 
